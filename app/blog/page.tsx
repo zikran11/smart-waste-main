@@ -90,14 +90,6 @@ export default function BlogPage() {
               <p className="text-muted-foreground mt-1">
                 Temukan tips, panduan, dan insight untuk hidup lebih ramah lingkungan              </p>
             </div>
-            {user && (
-              <Button asChild>
-                <Link href="/blog/create">
-                  <PenSquare className="w-4 h-4 mr-2" />
-                  Tulis Artikel
-                </Link>
-              </Button>
-            )}
           </div>
 
           {/* Search & Filters */}
