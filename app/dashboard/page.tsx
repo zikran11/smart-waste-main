@@ -17,7 +17,7 @@ import {
   ArrowRight,
   Coins
 } from 'lucide-react'
-import { getUserScanHistory } from '@/lib/user-scan-store'
+import { getCachedUserScanHistory, getUserScanHistory, getCachedDashboardStats } from '@/lib/user-scan-store'
 import { formatCurrency, WasteAnalysisResult } from '@/lib/mock-ai-data'
 import { useAuth } from '@/contexts/auth-context'
 
@@ -40,18 +40,62 @@ export default function DashboardPage() {
         return
       }
 
-      setLoading(true)
-      const history = await getUserScanHistory(user.uid)
-      setRecentScans(history.slice(0, 3))
-      setStats({
-        totalScans: history.length,
-        totalEconomicValue: history.reduce((sum, scan) => sum + scan.pricePerKg, 0),
-        totalCo2Reduction: history.reduce((sum, scan) => sum + scan.environmentalImpact.co2Reduction, 0),
-        totalEnergySaving: history.reduce((sum, scan) => sum + scan.environmentalImpact.energySaving, 0),
-        totalWaterSaving: history.reduce((sum, scan) => sum + scan.environmentalImpact.waterSaving, 0),
-        totalTreeEquivalent: history.reduce((sum, scan) => sum + scan.environmentalImpact.treeEquivalent, 0),
-      })
-      setLoading(false)
+      // Load cached stats immediately for instant display
+      const cachedStats = getCachedDashboardStats(user.uid)
+      const cachedHistory = getCachedUserScanHistory(user.uid)
+
+      if (cachedStats) {
+        setStats(cachedStats)
+        setRecentScans(cachedHistory.slice(0, 3))
+        setLoading(false)
+      } else if (cachedHistory.length > 0) {
+        // Fallback: calculate stats from cached history
+        const calculatedStats = {
+          totalScans: cachedHistory.length,
+          totalEconomicValue: cachedHistory.reduce((sum, scan) => sum + scan.pricePerKg, 0),
+          totalCo2Reduction: cachedHistory.reduce((sum, scan) => sum + scan.environmentalImpact.co2Reduction, 0),
+          totalEnergySaving: cachedHistory.reduce((sum, scan) => sum + scan.environmentalImpact.energySaving, 0),
+          totalWaterSaving: cachedHistory.reduce((sum, scan) => sum + scan.environmentalImpact.waterSaving, 0),
+          totalTreeEquivalent: cachedHistory.reduce((sum, scan) => sum + scan.environmentalImpact.treeEquivalent, 0),
+        }
+        setStats(calculatedStats)
+        setRecentScans(cachedHistory.slice(0, 3))
+        setLoading(false)
+      } else {
+        // No cached data, show empty state immediately
+        setStats({
+          totalScans: 0,
+          totalEconomicValue: 0,
+          totalCo2Reduction: 0,
+          totalEnergySaving: 0,
+          totalWaterSaving: 0,
+          totalTreeEquivalent: 0,
+        })
+        setRecentScans([])
+        setLoading(false)
+      }
+
+      // Load remote data in background and update if needed
+      try {
+        const history = await getUserScanHistory(user.uid)
+        const finalHistory = history.length > 0 ? history : cachedHistory
+        const finalStats = {
+          totalScans: finalHistory.length,
+          totalEconomicValue: finalHistory.reduce((sum, scan) => sum + scan.pricePerKg, 0),
+          totalCo2Reduction: finalHistory.reduce((sum, scan) => sum + scan.environmentalImpact.co2Reduction, 0),
+          totalEnergySaving: finalHistory.reduce((sum, scan) => sum + scan.environmentalImpact.energySaving, 0),
+          totalWaterSaving: finalHistory.reduce((sum, scan) => sum + scan.environmentalImpact.waterSaving, 0),
+          totalTreeEquivalent: finalHistory.reduce((sum, scan) => sum + scan.environmentalImpact.treeEquivalent, 0),
+        }
+
+        // Only update if data changed
+        if (JSON.stringify(finalStats) !== JSON.stringify(cachedStats)) {
+          setStats(finalStats)
+          setRecentScans(finalHistory.slice(0, 3))
+        }
+      } catch (error) {
+        console.error('Gagal memuat riwayat dashboard:', error)
+      }
     }
 
     loadHistory()

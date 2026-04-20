@@ -149,9 +149,12 @@ const analyzeImage = async (imageData: string) => {
     sessionStorage.setItem('lastScanResult', JSON.stringify(result))
 
     if (user) {
-      addScanToHistory(result)
-      await saveUserScanResult(user.uid, result)
+      saveUserScanResult(user.uid, result).catch((saveError) => {
+        console.error('Gagal menyimpan hasil scan:', saveError)
+        toast.error('Riwayat scan gagal disimpan. Hasil tetap ditampilkan.')
+      })
     } else {
+      addScanToHistory(result)
       toast('Login untuk menyimpan hasil scan ke dashboard')
     }
 
@@ -222,74 +225,70 @@ const capturePhoto = async () => {
           <Card className="rounded-2xl shadow-md relative">
             <CardContent className="p-6">
 
-              {/* LOADING UPLOAD */}
-              {isAnalyzing && !isCameraActive && (
-  <div className="flex flex-col items-center justify-center py-20">
+              {/* NOTE: selama analisis berlangsung, sembunyikan kontrol upload/scan */}
+              {!isCameraActive && (
+                isAnalyzing ? (
+                  <div className="flex flex-col items-center justify-center py-20">
+                    <div className="w-12 h-12 border-4 border-gray-300 border-t-green-500 rounded-full animate-spin"></div>
+                    <p className="mt-4 text-gray-700 font-medium">
+                      Menganalisis Limbah...
+                    </p>
+                  </div>
+                ) : (
+                  <div
+                    onClick={() => fileInputRef.current?.click()}
+                    className="border border-green-200 rounded-2xl p-4 cursor-pointer"
+                  >
+                    <div className="border-2 border-dashed border-green-400 rounded-2xl px-6 py-12 flex flex-col items-center justify-center gap-4 text-center hover:shadow-md transition">
 
-    {/* SPINNER */}
-    <div className="w-12 h-12 border-4 border-gray-300 border-t-green-500 rounded-full animate-spin"></div>
+                      <div className="w-16 h-16 flex items-center justify-center rounded-full bg-green-100">
+                        <ImageIcon className="w-8 h-8 text-green-600" />
+                      </div>
 
-    <p className="mt-4 text-gray-700 font-medium">
-      Menganalisis Limbah...
-    </p>
+                      <div>
+                        <p className="font-medium text-lg">
+                          Upload Foto Sampah
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          Tarik file ke sini atau pilih metode di bawah
+                        </p>
+                      </div>
 
-  </div>
-)}
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={handleFileUpload}
+                      />
 
-              {!image && !isCameraActive && (
-                <div
-                  onClick={() => fileInputRef.current?.click()}
-                  className="border border-green-200 rounded-2xl p-4 cursor-pointer"
-                >
-                  <div className="border-2 border-dashed border-green-400 rounded-2xl px-6 py-12 flex flex-col items-center justify-center gap-4 text-center hover:shadow-md transition">
+                      <div className="w-full flex gap-3 mt-4">
+                        <Button
+                          variant="outline"
+                          className="flex-1 flex items-center justify-center gap-2"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            fileInputRef.current?.click()
+                          }}
+                        >
+                          <Upload className="w-4 h-4" />
+                          Upload
+                        </Button>
 
-                    <div className="w-16 h-16 flex items-center justify-center rounded-full bg-green-100">
-                      <ImageIcon className="w-8 h-8 text-green-600" />
-                    </div>
-
-                    <div>
-                      <p className="font-medium text-lg">
-                        Upload Foto Sampah
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        Tarik file ke sini atau pilih metode di bawah
-                      </p>
-                    </div>
-
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={handleFileUpload}
-                    />
-
-                    <div className="w-full flex gap-3 mt-4">
-                      <Button
-  variant="outline"
-  className="flex-1 flex items-center justify-center gap-2"
-  onClick={(e) => {
-    e.stopPropagation()
-    fileInputRef.current?.click()
-  }}
->
-  <Upload className="w-4 h-4" />
-  Upload
-</Button>
-
-<Button
-  className="flex-1 flex items-center justify-center gap-2"
-  onClick={(e) => {
-    e.stopPropagation()
-    startCamera()
-  }}
->
-  <Camera className="w-4 h-4" />
-  Buka Kamera
-</Button>
+                        <Button
+                          className="flex-1 flex items-center justify-center gap-2"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            startCamera()
+                          }}
+                        >
+                          <Camera className="w-4 h-4" />
+                          Buka Kamera
+                        </Button>
+                      </div>
                     </div>
                   </div>
-                </div>
+                )
               )}
 
               {/* CAMERA */}
