@@ -9,8 +9,14 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { ArrowLeft, Calendar, User, Trash2 } from 'lucide-react'
-import { getPostById, deletePost, BlogPost } from '@/lib/blog-store'
+import {
+  getPostByIdFirestore,
+  deletePostFirestore,
+  getFirestoreErrorMessage,
+} from '@/lib/blog-firestore-store'
+import type { BlogPost } from '@/lib/blog-store'
 import { useAuth } from '@/contexts/auth-context'
+import { toast } from 'sonner'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,12 +38,21 @@ export default function BlogDetailPage({ params }: { params: Promise<{ id: strin
   const contentRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    const foundPost = getPostById(resolvedParams.id)
-    if (foundPost) {
-      setPost(foundPost)
-    } else {
-      router.push('/blog')
+    const loadPost = async () => {
+      try {
+        const foundPost = await getPostByIdFirestore(resolvedParams.id)
+        if (foundPost) {
+          setPost(foundPost)
+          return
+        }
+        router.push('/blog')
+      } catch (error) {
+        toast.error(getFirestoreErrorMessage(error, 'Gagal memuat detail blog'))
+        router.push('/blog')
+      }
     }
+
+    loadPost()
   }, [resolvedParams.id, router])
 
   useEffect(() => {
@@ -54,10 +69,15 @@ export default function BlogDetailPage({ params }: { params: Promise<{ id: strin
     return () => ctx.revert()
   }, [post])
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (post) {
-      deletePost(post.id)
-      router.push('/blog')
+      try {
+        await deletePostFirestore(post.id)
+        toast.success('Blog berhasil dihapus')
+        router.push('/blog')
+      } catch (error) {
+        toast.error(getFirestoreErrorMessage(error, 'Gagal menghapus blog'))
+      }
     }
   }
 

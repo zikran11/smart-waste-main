@@ -9,8 +9,14 @@ import { Card, CardContent, CardFooter } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { PenSquare, Search, Calendar, User, ArrowRight } from 'lucide-react'
-import { getAllPosts, getCategories, BlogPost } from '@/lib/blog-store'
+import {
+  getAllPostsFirestore,
+  getCategoriesFromPosts,
+  getFirestoreErrorMessage,
+} from '@/lib/blog-firestore-store'
+import type { BlogPost } from '@/lib/blog-store'
 import { useAuth } from '@/contexts/auth-context'
+import { toast } from 'sonner'
 
 export default function BlogPage() {
   const { user } = useAuth()
@@ -23,8 +29,19 @@ export default function BlogPage() {
   const cardsRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    setPosts(getAllPosts())
-    setCategories(getCategories())
+    const loadPosts = async () => {
+      try {
+        const fetchedPosts = await getAllPostsFirestore()
+        setPosts(fetchedPosts)
+        setCategories(getCategoriesFromPosts(fetchedPosts))
+      } catch (error) {
+        setPosts([])
+        setCategories([])
+        toast.error(getFirestoreErrorMessage(error, 'Gagal memuat blog dari Firestore'))
+      }
+    }
+
+    loadPosts()
   }, [])
 
   useEffect(() => {

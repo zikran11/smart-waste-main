@@ -16,7 +16,12 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { ArrowLeft, Loader2 } from 'lucide-react'
-import { createPost, getCategories } from '@/lib/blog-store'
+import {
+  createPostFirestore,
+  getAllPostsFirestore,
+  getCategoriesFromPosts,
+  getFirestoreErrorMessage,
+} from '@/lib/blog-firestore-store'
 import { useAuth } from '@/contexts/auth-context'
 import { toast } from 'sonner'
 
@@ -50,10 +55,20 @@ export default function CreateBlogPage() {
   }, [user, loading, router])
 
   useEffect(() => {
-    const existingCategories = getCategories()
-    if (existingCategories.length > 0) {
-      setCategories(existingCategories)
+    const loadCategories = async () => {
+      try {
+        const posts = await getAllPostsFirestore()
+        const existingCategories = getCategoriesFromPosts(posts)
+        if (existingCategories.length > 0) {
+          setCategories(existingCategories)
+        }
+      } catch (error) {
+        toast.error(getFirestoreErrorMessage(error, 'Gagal memuat kategori blog dari Firestore'))
+        // Keep default categories when fetch fails.
+      }
     }
+
+    loadCategories()
   }, [])
 
   useEffect(() => {
@@ -120,9 +135,15 @@ export default function CreateBlogPage() {
     setIsSubmitting(true)
 
     try {
+      if (!user?.uid) {
+        toast.error('Sesi login tidak valid. Silakan login ulang.')
+        setIsSubmitting(false)
+        return
+      }
+
       const coverImageUrl = await uploadImageToCloudinary(coverImageFile)
 
-      createPost({
+      await createPostFirestore({
         title,
         excerpt,
         content,
@@ -132,12 +153,12 @@ export default function CreateBlogPage() {
           name: user?.email?.split('@')[0] || 'Anonymous',
           email: user?.email || 'anonymous@example.com'
         }
-      })
+      }, user.uid)
 
       toast.success('Blog berhasil dipublikasikan!')
       router.push('/blog')
     } catch (error) {
-      toast.error('Gagal mempublikasikan blog')
+      toast.error(getFirestoreErrorMessage(error, 'Gagal mempublikasikan blog'))
     } finally {
       setIsSubmitting(false)
     }
