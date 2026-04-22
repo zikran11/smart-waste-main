@@ -27,7 +27,7 @@ export function Navbar() {
     { href: '/scan', label: 'Scan Limbah' },
     { href: '/artikel', label: 'Artikel' },
     ...(user ? [
-      { href: '/blog/create', label: 'Blog' },
+      { href: '/blog', label: 'Blog' },
       { href: '/dashboard', label: 'Dashboard' },
     ] : []),
   ]

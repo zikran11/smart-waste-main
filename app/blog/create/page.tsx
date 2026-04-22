@@ -59,9 +59,7 @@ export default function CreateBlogPage() {
       try {
         const posts = await getAllPostsFirestore()
         const existingCategories = getCategoriesFromPosts(posts)
-        if (existingCategories.length > 0) {
-          setCategories(existingCategories)
-        }
+        setCategories(Array.from(new Set([...defaultCategories, ...existingCategories])))
       } catch (error) {
         toast.error(getFirestoreErrorMessage(error, 'Gagal memuat kategori blog dari Firestore'))
         // Keep default categories when fetch fails.
