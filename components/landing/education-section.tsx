@@ -115,7 +115,7 @@ gsap.fromTo(
         {/* CTA */}
         <div className="text-center mt-10">
           <Button asChild>
-            <Link href="/blog">
+            <Link href="/artikel">
               Lihat Semua Artikel
               <ArrowRight className="w-4 h-4 ml-2" />
             </Link>
