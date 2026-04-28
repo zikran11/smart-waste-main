@@ -78,128 +78,129 @@ export default function ScanPage() {
   }, [isCameraActive])
 
   /* ================= ANALYZE ================= */
-const analyzeImage = async (imageData: string) => {
-  try {
-    if (typeof navigator !== 'undefined' && !navigator.onLine) {
-      toast.error('Tidak ada koneksi internet. Silakan scan ulang lagi.')
-      return
-    }
-
-    setIsAnalyzing(true)
-
-    const res = await fetch('/api/analyze', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        imageBase64: imageData.split(',')[1]
-      })
-    })
-
-    if (!res.ok) {
-      toast.error('Tidak ada koneksi internet. Silakan scan ulang lagi.')
-      return
-    }
-
-    const ai = await res.json()
-    const category = normalizeWasteCategory(ai.category, ai.item_name)
-    const categoryDefaults = getWasteCategoryData(category)
-
-    const result: WasteAnalysisResult = {
-  id: crypto.randomUUID(), // ✅ WAJIB
-
-  imageUrl: imageData,
-
-  wasteType: ai.item_name || categoryDefaults.wasteType || "Tidak diketahui",
-  wasteTypeEn: ai.item_name || categoryDefaults.wasteTypeEn || "Unknown",
-
-  category,
-
-  confidenceScore: Number(ai?.confidence_score ?? 0),
-
-  pricePerKg: categoryDefaults.pricePerKg ?? 2000,
-  currency: categoryDefaults.currency || "IDR", // ✅ WAJIB
-
-  recyclable:
-    typeof ai.recyclable === 'boolean'
-      ? ai.recyclable
-      : categoryDefaults.recyclable ?? false,
-
-  recycleInfo: ai.disposal_advice || categoryDefaults.recycleInfo || "-",
-  recycleSteps: categoryDefaults.recycleSteps || [
-    "Pisahkan dari sampah lain",
-    "Bersihkan sebelum didaur ulang",
-    "Setorkan ke bank sampah"
-  ],
-
-  environmentalImpact: categoryDefaults.environmentalImpact || {
-    co2Reduction: 2,
-    energySaving: 5,
-    waterSaving: 10,
-    treeEquivalent: 1
-  },
-
-  aiExplanation: ai.fun_fact || "-",
-
-  validationStatus: ai.validation_status ?? 'unknown',
-  validationReason: ai.validation_reason || '-',
-  recommendation: ai.recommendation || ai.disposal_advice || '-',
-  isHumanOrAnimal: ai.is_human_or_animal ?? false,
-  limitReached: ai.limit_reached ?? false,
-
-  createdAt: new Date(), // ✅ WAJIB
-}
-
-    sessionStorage.setItem('lastScanResult', JSON.stringify(result))
-
-    if (user) {
-      saveUserScanResult(user.uid, result).catch((saveError) => {
-        console.error('Gagal menyimpan hasil scan:', saveError)
-        toast.error('Riwayat scan gagal disimpan. Hasil tetap ditampilkan.')
-      })
-    } else {
-      addScanToHistory(result)
-      toast('Login untuk menyimpan hasil scan ke dashboard')
-    }
-
-    // Delay navigation slightly to avoid conflicts with GSAP cleanup
-    setTimeout(() => {
-      try {
-        router.push('/scan/result')
-      } catch (navError) {
-        console.error('Navigation error:', navError)
-        // Fallback: use window.location as last resort
-        window.location.href = '/scan/result'
+  const analyzeImage = async (imageData: string) => {
+    try {
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        toast.error('Tidak ada koneksi internet. Silakan scan ulang lagi.')
+        return
       }
-    }, 50)
 
-  } catch (err) {
-    console.error(err)
-    toast.error('Tidak ada koneksi internet. Silakan scan ulang lagi.')
-  } finally {
-    setIsAnalyzing(false)
+      setIsAnalyzing(true)
+
+      const res = await fetch('/api/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          imageBase64: imageData.split(',')[1]
+        })
+      })
+
+      if (!res.ok) {
+        toast.error('Tidak ada koneksi internet. Silakan scan ulang lagi.')
+        return
+      }
+
+      const ai = await res.json()
+      const category = normalizeWasteCategory(ai.category, ai.item_name)
+      const categoryDefaults = getWasteCategoryData(category)
+
+      const result: WasteAnalysisResult = {
+        id: crypto.randomUUID(), // ✅ WAJIB
+
+        imageUrl: imageData,
+
+        wasteType: ai.item_name || categoryDefaults.wasteType || "Tidak diketahui",
+        wasteTypeEn: ai.item_name || categoryDefaults.wasteTypeEn || "Unknown",
+
+        category,
+
+        confidenceScore: Number(ai?.confidence_score ?? 0),
+
+        pricePerKg: categoryDefaults.pricePerKg ?? 2000,
+        currency: categoryDefaults.currency || "IDR", // ✅ WAJIB
+
+        recyclable:
+          typeof ai.recyclable === 'boolean'
+            ? ai.recyclable
+            : categoryDefaults.recyclable ?? false,
+
+        recycleInfo: ai.disposal_advice || categoryDefaults.recycleInfo || "-",
+        recycleSteps: categoryDefaults.recycleSteps || [
+          "Pisahkan dari sampah lain",
+          "Bersihkan sebelum didaur ulang",
+          "Setorkan ke bank sampah"
+        ],
+
+        environmentalImpact: categoryDefaults.environmentalImpact || {
+          co2Reduction: 2,
+          energySaving: 5,
+          waterSaving: 10,
+          treeEquivalent: 1
+        },
+
+        aiExplanation: ai.fun_fact || "-",
+
+        validationStatus: ai.validation_status ?? 'unknown',
+        validationReason: ai.validation_reason || '-',
+        recommendation: ai.recommendation || ai.disposal_advice || '-',
+        isHumanOrAnimal: ai.is_human_or_animal ?? false,
+        limitReached: ai.limit_reached ?? false,
+
+        createdAt: new Date(), // ✅ WAJIB
+      }
+
+      sessionStorage.setItem('lastScanResult', JSON.stringify(result))
+
+      if (user) {
+        try {
+          await saveUserScanResult(user.uid, result)
+        } catch (error) {
+          console.error('Firebase error:', error)
+        }
+      } else {
+        addScanToHistory(result)
+        toast('Login untuk menyimpan hasil scan ke dashboard')
+      }
+
+      // Delay navigation slightly to avoid conflicts with GSAP cleanup
+      setTimeout(() => {
+        try {
+          router.push('/scan/result')
+        } catch (navError) {
+          console.error('Navigation error:', navError)
+          // Fallback: use window.location as last resort
+          window.location.href = '/scan/result'
+        }
+      }, 50)
+
+    } catch (err) {
+      console.error(err)
+      toast.error('Tidak ada koneksi internet. Silakan scan ulang lagi.')
+    } finally {
+      setIsAnalyzing(false)
+    }
   }
-}
 
   /* ================= CAPTURE ================= */
-const capturePhoto = async () => {
-  if (!videoRef.current || !canvasRef.current) return
+  const capturePhoto = async () => {
+    if (!videoRef.current || !canvasRef.current) return
 
-  const canvas = canvasRef.current
-  canvas.width = videoRef.current.videoWidth
-  canvas.height = videoRef.current.videoHeight
+    const canvas = canvasRef.current
+    canvas.width = videoRef.current.videoWidth
+    canvas.height = videoRef.current.videoHeight
 
-  const ctx = canvas.getContext('2d')
-  if (!ctx) return
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
 
-  ctx.drawImage(videoRef.current, 0, 0)
-  const imageData = canvas.toDataURL('image/jpeg', 0.8)
+    ctx.drawImage(videoRef.current, 0, 0)
+    const imageData = canvas.toDataURL('image/jpeg', 0.8)
 
-  // 🔥 cukup ini saja
-  await analyzeImage(imageData)
+    // 🔥 cukup ini saja
+    await analyzeImage(imageData)
 
-  // 🔥 baru stop kamera
-  stopCamera()
-}
+    // 🔥 baru stop kamera
+    stopCamera()
+  }
   /* ================= UPLOAD ================= */
   const handleFileUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]

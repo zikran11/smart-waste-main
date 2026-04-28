@@ -11,6 +11,8 @@ import { Progress } from '@/components/ui/progress'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { useAuth } from '@/contexts/auth-context'
+import { db } from '@/lib/firebase'
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
 import {
   Camera,
   TreePine,
@@ -30,6 +32,7 @@ export default function ResultPage() {
   const router = useRouter()
   const { user } = useAuth()
   const [result, setResult] = useState<WasteAnalysisResult | null>(null)
+  const [isSaved, setIsSaved] = useState(false)
   const pageRef = useRef<HTMLDivElement>(null)
   const headerRef = useRef<HTMLDivElement>(null)
   const mainRef = useRef<HTMLDivElement>(null)
@@ -55,6 +58,36 @@ export default function ResultPage() {
     }
   }, [router])
 
+useEffect(() => {
+  if (!result || !user || isSaved) return
+
+  const saveResult = async () => {
+    try {
+      console.log("🔄 Saving to Firestore...")
+
+      const docRef = await addDoc(collection(db, 'scan_results'), {
+        userId: user.uid,
+        wasteType: result.wasteType,
+        category: result.category,
+        confidenceScore: result.confidenceScore,
+        pricePerKg: result.pricePerKg,
+        recyclable: result.recyclable,
+        imageUrl: result.imageUrl,
+        createdAt: serverTimestamp()
+      })
+
+      console.log("✅ Saved ID:", docRef.id)
+
+      setIsSaved(true)
+
+    } catch (error) {
+      console.error("❌ Firebase error:", error)
+      // JANGAN TAMPILKAN ERROR PALSU
+    }
+  }
+
+  saveResult()
+}, [result, user])
   useEffect(() => {
     if (!result) return
 
