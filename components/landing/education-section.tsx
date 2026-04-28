@@ -8,50 +8,67 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Calendar, ArrowRight } from 'lucide-react'
-import { getAllPosts, BlogPost } from '@/lib/blog-store'
+
+type NewsPost = {
+  id: string
+  title: string
+  excerpt: string
+  sourceUrl: string
+  coverImage: string
+  sourceName: string
+  publishedAt: string
+}
 
 export function EducationSection() {
   const sectionRef = useRef<HTMLElement | null>(null)
   const cardsRef = useRef<HTMLDivElement | null>(null)
-  const [posts, setPosts] = useState<BlogPost[]>([])
+  const [posts, setPosts] = useState<NewsPost[]>([])
 
+  // FETCH FROM API NEWS
   useEffect(() => {
-    const allPosts = getAllPosts()
+    const loadNews = async () => {
+      try {
+        const response = await fetch('/api/news')
 
-    const latestPosts = allPosts
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-      .slice(0, 3)
+        const data = await response.json()
 
-    setPosts(latestPosts)
+        // PAKAI LANGSUNG DARI API (JANGAN DIUBAH BERLEBIHAN)
+        const articles = data?.articles ?? []
+
+        setPosts(articles.slice(0, 3))
+      } catch (err) {
+        console.error('Error load news:', err)
+      }
+    }
+
+    loadNews()
   }, [])
 
+  // GSAP animation
   useEffect(() => {
     gsap.registerPlugin(ScrollTrigger)
 
     const cards = cardsRef.current?.querySelectorAll('.edu-card') ?? []
 
-gsap.fromTo(
-  cards,
-  { opacity: 0, y: 40 },
-  {
-    opacity: 1,
-    y: 0,
-    duration: 0.6,
-    stagger: 0.15,
-    ease: 'power3.out',
-    scrollTrigger: {
-      trigger: sectionRef.current,
-      start: 'top 80%',
-
-      toggleActions: 'play none none reset',
-
-      invalidateOnRefresh: true,
-    }
-  }
-)
+    gsap.fromTo(
+      cards,
+      { opacity: 0, y: 40 },
+      {
+        opacity: 1,
+        y: 0,
+        duration: 0.6,
+        stagger: 0.15,
+        ease: 'power3.out',
+        scrollTrigger: {
+          trigger: sectionRef.current,
+          start: 'top 80%',
+          toggleActions: 'play none none reset'
+        }
+      }
+    )
   }, [posts])
 
-  const formatDate = (date: Date) => {
+  const formatDate = (date: string) => {
     return new Date(date).toLocaleDateString('id-ID', {
       day: 'numeric',
       month: 'short',
@@ -78,21 +95,24 @@ gsap.fromTo(
           {posts.map((post) => (
             <Card key={post.id} className="edu-card group hover:shadow-lg transition">
 
-              {/* Image */}
               <div className="aspect-video overflow-hidden">
                 <img
                   src={post.coverImage}
                   alt={post.title}
+                  onError={(e) => {
+                    ;(e.target as HTMLImageElement).src = '/placeholder.jpg'
+                  }}
                   className="w-full h-full object-cover group-hover:scale-105 transition"
                 />
               </div>
 
               <CardContent className="p-5">
+
                 <Badge variant="secondary" className="mb-2">
-                  {post.category}
+                  {post.sourceName}
                 </Badge>
 
-                <h3 className="font-semibold mb-2 line-clamp-2 group-hover:text-primary transition">
+                <h3 className="font-semibold mb-2 line-clamp-2 group-hover:text-primary">
                   {post.title}
                 </h3>
 
@@ -101,12 +121,12 @@ gsap.fromTo(
                 </p>
 
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span>{post.author.name}</span>
                   <span className="flex items-center gap-1">
                     <Calendar className="w-3 h-3" />
-                    {formatDate(post.createdAt)}
+                    {formatDate(post.publishedAt)}
                   </span>
                 </div>
+
               </CardContent>
             </Card>
           ))}

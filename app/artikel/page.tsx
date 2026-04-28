@@ -199,6 +199,9 @@ export default function ArtikelPage() {
                   <img
                     src={post.coverImage}
                     alt={post.title}
+                    onError={(e) => {
+                      ;(e.target as HTMLImageElement).src = '/placeholder.jpg'
+                    }}
                     className="w-full h-full object-cover group-hover:scale-105 transition"
                   />
                 </div>
