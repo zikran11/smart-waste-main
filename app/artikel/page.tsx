@@ -1,23 +1,31 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import Link from 'next/link'
 import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardFooter } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
-import { Search, Calendar, User, ArrowRight } from 'lucide-react'
-import { getAllPosts, getCategories, BlogPost } from '@/lib/blog-store'
-import { useAuth } from '@/contexts/auth-context'
+import { Calendar, ExternalLink } from 'lucide-react'
+
+type NewsPost = {
+  id: string
+  title: string
+  excerpt: string
+  sourceUrl: string
+  coverImage: string
+  sourceName: string
+  publishedAt: string
+}
 
 export default function ArtikelPage() {
-  const { user } = useAuth()
-  const [posts, setPosts] = useState<BlogPost[]>([])
+  const [posts, setPosts] = useState<NewsPost[]>([])
   const [categories, setCategories] = useState<string[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [errorMessage, setErrorMessage] = useState('')
 
   // Define the fixed categories
   const fixedCategories = ['Lingkungan', 'Tips & Trick', 'Kreasi', 'Edukasi']
@@ -27,8 +35,38 @@ export default function ArtikelPage() {
   const cardsRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    setPosts(getAllPosts())
     setCategories(fixedCategories)
+    const loadNews = async () => {
+      try {
+        setIsLoading(true)
+        setErrorMessage('')
+        const response = await fetch('/api/news')
+        const contentType = response.headers.get('content-type') ?? ''
+        const isJson = contentType.includes('application/json')
+
+        if (!response.ok) {
+          if (isJson) {
+            const data = (await response.json()) as { message?: string }
+            throw new Error(data?.message ?? `Gagal memuat artikel. (${response.status})`)
+          }
+
+          const text = await response.text()
+          throw new Error(
+            `Gagal memuat artikel. (${response.status}) ${text?.slice(0, 120) ?? ''}`.trim()
+          )
+        }
+
+        const data = (isJson ? await response.json() : null) as { articles?: NewsPost[] } | null
+        setPosts(data?.articles ?? [])
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Gagal memuat artikel.'
+        setErrorMessage(message)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    loadNews()
   }, [])
 
   useEffect(() => {
@@ -70,13 +108,22 @@ export default function ArtikelPage() {
       post.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       post.excerpt.toLowerCase().includes(searchQuery.toLowerCase())
 
+    const postText = `${post.title} ${post.excerpt}`.toLowerCase()
     const matchesCategory =
-      !selectedCategory || post.category === selectedCategory
+      !selectedCategory ||
+      (selectedCategory === 'Lingkungan' &&
+        /lingkungan|perubahan iklim|ekologi|hijau/.test(postText)) ||
+      (selectedCategory === 'Tips & Trick' &&
+        /tips|cara|panduan|langkah/.test(postText)) ||
+      (selectedCategory === 'Kreasi' &&
+        /kreasi|kerajinan|upcycle|daur ulang/.test(postText)) ||
+      (selectedCategory === 'Edukasi' &&
+        /edukasi|belajar|sekolah|pengetahuan/.test(postText))
 
     return matchesSearch && matchesCategory
   })
 
-  const formatDate = (date: Date) => {
+  const formatDate = (date: string) => {
     return new Date(date).toLocaleDateString('id-ID', {
       day: 'numeric',
       month: 'long',
@@ -131,7 +178,18 @@ export default function ArtikelPage() {
         </div>
 
         {/* Grid */}
-        {filteredPosts.length > 0 ? (
+        {isLoading ? (
+          <div className="text-center py-16 text-muted-foreground">
+            Memuat artikel terbaru...
+          </div>
+        ) : errorMessage ? (
+          <div className="text-center py-16 text-muted-foreground space-y-3">
+            <p>{errorMessage}</p>
+            <Button onClick={() => window.location.reload()} variant="outline">
+              Coba Lagi
+            </Button>
+          </div>
+        ) : filteredPosts.length > 0 ? (
           <div ref={cardsRef} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 
             {filteredPosts.map((post) => (
@@ -146,9 +204,7 @@ export default function ArtikelPage() {
                 </div>
 
                 <CardContent className="p-5">
-                  <Badge className="mb-3" variant="secondary">
-                    {post.category}
-                  </Badge>
+                  <Badge className="mb-3" variant="secondary">{post.sourceName}</Badge>
 
                   <h3 className="text-lg font-semibold mb-2 line-clamp-2 group-hover:text-primary">
                     {post.title}
@@ -160,23 +216,18 @@ export default function ArtikelPage() {
 
                   <div className="flex items-center gap-4 text-xs text-muted-foreground">
                     <div className="flex items-center gap-1">
-                      <User className="w-3 h-3" />
-                      {post.author.name}
-                    </div>
-
-                    <div className="flex items-center gap-1">
                       <Calendar className="w-3 h-3" />
-                      {formatDate(post.createdAt)}
+                      {formatDate(post.publishedAt)}
                     </div>
                   </div>
                 </CardContent>
 
                 <CardFooter className="p-5 pt-0">
                   <Button asChild variant="ghost" className="w-full gap-2">
-                    <Link href={`/artikel/${post.id}`}>
-                      Baca Selengkapnya
-                      <ArrowRight className="w-4 h-4" />
-                    </Link>
+                    <a href={post.sourceUrl} target="_blank" rel="noreferrer">
+                      Baca di Sumber Asli
+                      <ExternalLink className="w-4 h-4" />
+                    </a>
                   </Button>
                 </CardFooter>
 
