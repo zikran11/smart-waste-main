@@ -143,6 +143,7 @@ export function Navbar() {
                     {link.label === "Riwayat" && <History className="h-5 w-5" />}
                     {link.label === "Blog" && <BookOpen className="h-5 w-5" />}
                     {link.label === "Dashboard" && <LayoutDashboard className="h-5 w-5" />}
+                    {link.label === "Artikel" && <BookOpen className="h-5 w-5" />}
 
                     <span className="text-sm font-medium">{link.label}</span>
                   </Link>
